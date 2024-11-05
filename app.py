@@ -7,11 +7,15 @@ import asyncio
 
 from astream_events_handler import invoke_our_graph
 from conf import cards, categories
+from util import check_password
 
 load_dotenv()
 
 st.title("StreamLit 🤝 LangGraph")
 st.markdown("#### Chat Streaming and Tool Calling using Astream Events")
+
+if not check_password():
+    st.stop()
 
 # Initialize the expander state
 if "expander_open" not in st.session_state:
