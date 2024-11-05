@@ -1,22 +1,17 @@
-from collections import defaultdict
 from typing import Annotated, TypedDict, Literal, List, Dict, Optional
 
 from langgraph.prebuilt import ToolNode
 from langchain_core.tools import tool, StructuredTool
 from langgraph.graph import START, StateGraph
 from langgraph.graph.message import AnyMessage, add_messages
-from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 from langchain_openai import ChatOpenAI
 
 from conf import cards
 
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA
 from langchain_openai import OpenAI
 from langchain.schema import Document
-from langchain.chains.question_answering import load_qa_chain
-from langchain.chains import create_retrieval_chain
 
 
 documents = [
@@ -34,13 +29,6 @@ llm = OpenAI()
 
 db.save_local("faiss_index")
 new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
-
-# query = "I need cards for kids to express yes or no and learn family members."
-
-# docs = new_db.similarity_search_with_score(query)
-# res = "\n\n".join([doc[0].page_content for doc in docs])
-#
-# print(res)
 
 
 @tool
