@@ -12,7 +12,7 @@ from util import check_password
 load_dotenv()
 
 st.title("AAC ChatBot")
-st.markdown("This example allows to fit AAC symbols for your needs")
+st.markdown("Hi! Let me help you select the DyvoGra symbol for alternative and augmentative communication (AAC). This will assist you in DImobi app usage. Please enter a few words about the topic or situation in which you need graphic symbols for communication.")
 
 if not check_password():
     st.stop()
@@ -45,7 +45,7 @@ for category, description in categories.items():
         cats += f", available keywords: {actions}\n"
 
 init = f"""
-You are an assistive communication tool that helps users find specific visual communication cards for individuals with communication needs, especially for children and adults with conditions such as autism. Based on the user’s request, your task is to construct a relevant set of cards from predefined .
+You are an assistive communication tool that helps users find specific visual communication cards for individuals with complex communication needs, especially for children and adults with disorders such as autism or aphasia. Based on the user’s request, your task is to construct a relevant set of cards from predefined categories.
 
 ### Instructions
 1. **Categories Available**:
