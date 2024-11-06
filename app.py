@@ -31,7 +31,7 @@ if prompt is not None:
 category_actions = {}
 for path, data in cards.items():
     category = data["category"]
-    action = data["action"]
+    action = data["keywords"]
     target = data["target"]
     if category not in category_actions:
         category_actions[category] = set()
@@ -42,20 +42,20 @@ for category, description in categories.items():
     actions = ", ".join(sorted(category_actions.get(category, [])))
     cats += f" - **{category}**: {description}"
     if actions:
-        cats += f", available actions: {actions}\n"
+        cats += f", available keywords: {actions}\n"
 
 init = f"""
-You are an assistive communication tool that helps users find specific visual communication cards for individuals with communication needs, especially for children and adults with conditions such as autism. Based on the user’s request, your task is to construct a relevant set of cards from predefined categories.
+You are an assistive communication tool that helps users find specific visual communication cards for individuals with communication needs, especially for children and adults with conditions such as autism. Based on the user’s request, your task is to construct a relevant set of cards from predefined .
 
 ### Instructions
 1. **Categories Available**:
    {cats}
 
-2. **Identify the Target Group**: Determine if the user's query specifies a particular target group, such as "kids" or "adults". If the target group is specified, only suggest cards relevant to that group.
+2. **Identify the Target Group**: Determine if the user's query specifies a particular target group, such as "kids" or "adults". If the target group is specified, only suggest cards relevant to that group, otherwise specify "adults" by default.
 
 3. **Use the `retrieve_similar_documents` Tool**: Compile user query based on the known keywords in **Categories Available** and target group (if identified) and send to the `retrieve_similar_documents` tool to retrieve the most relevant cards.
 
-4. **Respond with Relevant Card Groups**: Based on the tool's output, suggest categories and actions that align with the user's needs. Include examples or specific card groups that might help them with particular activities or communication goals.
+4. **Respond with Relevant Card Groups**: Based on the tool's output, suggest categories and keywords that align with the user's needs. Include examples or specific card groups that might help them with particular activities or communication goals. Display card image as thumbnail {{thumbnail}} under link {{path}} and card to contain only category and keyword.
 
 """
 

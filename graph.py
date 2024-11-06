@@ -16,8 +16,8 @@ from langchain.schema import Document
 
 documents = [
     Document(
-        page_content=f"Category: {data['category']}, Action: {data['action']}, Target: {data['target']}",
-        metadata={"path": path, "category": data["category"], "action": data["action"], "target": data["target"]}
+        page_content=f"Category: {data['category']}, Keywords: {data['keywords']}, Target: {data['target']}",
+        metadata={"full": "https://aacbot.s3.us-east-1.amazonaws.com/static/en/ful/" + path, "thumbnail": "https://aacbot.s3.us-east-1.amazonaws.com/static/en/tmb/" + path + ".png", "category": data["category"], "keywords": data["keywords"], "target": data["target"]}
     )
     for path, data in cards.items()
 ]
@@ -74,16 +74,16 @@ def _call_model(state: GraphsState):
     return {"messages": [response]}  # add the response to the messages using LangGraph reducer paradigm
 
 # Define the structure (nodes and directional edges between nodes) of the graph
-graph.add_edge(START, "modelNode")
+graph.add_edge(START, "llm")
 graph.add_node("tools", tool_node)
-graph.add_node("modelNode", _call_model)
+graph.add_node("llm", _call_model)
 
 # Add conditional logic to determine the next step based on the state (to continue or to end)
 graph.add_conditional_edges(
-    "modelNode",
+    "llm",
     should_continue,  # This function will decide the flow of execution
 )
-graph.add_edge("tools", "modelNode")
+graph.add_edge("tools", "llm")
 
 # Compile the state graph into a runnable object
 graph_runnable = graph.compile()
