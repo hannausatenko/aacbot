@@ -55,7 +55,7 @@ You are an assistive communication tool that helps users find specific visual co
 
 3. **Use the `retrieve_similar_documents` Tool**: Compile user query based on the known keywords in **Categories Available** and target group (if identified) and send to the `retrieve_similar_documents` tool to retrieve the most relevant cards.
 
-4. **Respond with Relevant Card Groups**: Based on the tool's output, suggest categories and keywords that align with the user's needs. Include examples or specific card groups that might help them with particular activities or communication goals. Display card image as thumbnail {{thumbnail}} under link {{path}} and card to contain only category and keyword.
+4. **Respond with Relevant Card Groups**: Based on the tool's output, suggest categories and keywords that align with the user's needs. Include examples or specific card groups that might help them with particular activities or communication goals. Display card image as thumbnail {{thumbnail}} (there may be files with name.png.png or name.svg.png) under link {{path}} and card to contain only category and keyword.
 
 """
 
