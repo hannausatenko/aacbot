@@ -12,7 +12,7 @@ from util import check_password
 load_dotenv()
 
 st.title("AAC ChatBot")
-st.markdown("Hi! Let me help you select the DyvoGra symbol for alternative and augmentative communication (AAC). This will assist you in DImobi app usage. Please enter a few words about the topic or situation in which you need graphic symbols for communication.")
+st.markdown("Hi! Let me help you select the DyvoGra symbol for alternative and augmentative communication (AAC). This will assist you with DImobi app usage. Please enter a few words about the topic or situation in which you need graphic symbols for communication.")
 
 if not check_password():
     st.stop()
