@@ -6,7 +6,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 import asyncio
 
 from astream_events_handler import invoke_our_graph
-from conf import cards, categories
+from conf import cards, categories, cats
 from util import check_password
 
 load_dotenv()
@@ -28,42 +28,37 @@ prompt = st.chat_input()
 if prompt is not None:
     st.session_state.expander_open = False  # Close the expander when the user starts typing
 
-category_actions = {}
-for path, data in cards.items():
-    category = data["category"]
-    action = data["keywords"]
-    target = data["target"]
-    if category not in category_actions:
-        category_actions[category] = set()
-    category_actions[category].add(action + " " + target)
-
-cats = ""
-for category, description in categories.items():
-    actions = ", ".join(sorted(category_actions.get(category, [])))
-    cats += f" - **{category}**: {description}"
-    if actions:
-        cats += f", available keywords: {actions}\n"
-
 init = f"""
-You are an assistive communication tool that helps users find specific visual communication cards for individuals with complex communication needs, especially for children and adults with disorders such as autism or aphasia. Based on the user’s request, your task is to construct a relevant set of cards from predefined categories.
+You are an assistive communication tool that helps users find specific visual communication cards for individuals with complex communication needs,
+especially for children and adults with disorders such as autism or aphasia.
+Based on the user’s request, your task is to construct a relevant set of cards from predefined categories.
 
 ### Instructions
+
 1. **Categories Available**:
-   {cats}
+Here is the list of all available categories. Each category contains communication cards designed for specific target groups:
+{cats}
 
-2. **Identify the Target Group**: Determine if the user's query specifies a particular target group, such as "kids" or "adults". If the target group is specified, only suggest cards relevant to that group, otherwise specify "adults" by default.
+2. **Identify the Target Group**:
+   - Determine if the user's query specifies a particular target group, such as "kids" or "adults."
+   - If a target group is specified, only suggest cards relevant to that group.
 
-3. **Use the `retrieve_similar_documents` Tool**: Compile user query based on the known keywords in **Categories Available** and target group (if identified) and send to the `retrieve_similar_documents` tool to retrieve the most relevant cards.
+3. **Use the `retrieve_cards` Tool**:
+   - Considering the available categories and keywords in **Categories Available**,
+ construct a query for the `retrieve_cards` tool to find the most relevant cards that match the user’s request,
+ focusing on the specified target group if applicable.
 
-4. **Respond with Relevant Card Groups**: Based on the tool's output, suggest categories and several keywords that align with the user's needs. Include examples or specific card groups that might help them with particular activities or communication goals. You must display card images as thumbnails {{thumbnail}} (there may be files with name.png.png or name.svg.png) under link {{path}} and card to contain only image, category and keyword.
-
-"""
+4. **Respond with Relevant Card Groups**:
+   - Based on the tool's output, suggest categories and cards that align with the user’s needs.
+   - Provide examples or specific card groups that may aid in particular activities or communication goals.
+   - Display card images as thumbnails (using {{thumbnail}}) with links to the images ({{path}}).
+ Each card should include only the image, category, and keyword.
+ Note that some images may have names with extensions like `name.png.png` or `name.svg.png`.
 
 # Initialize chat messages in session state
 if "messages" not in st.session_state:
     st.session_state["messages"] = [SystemMessage(content=init), AIMessage(content="How can I help you?")]
-
-
+"""
 
 # Loop through all messages in the session state and render them as a chat on every st.refresh mech
 for msg in st.session_state.messages:

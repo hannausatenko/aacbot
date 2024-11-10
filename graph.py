@@ -32,18 +32,15 @@ new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserializa
 
 
 @tool
-def retrieve_similar_documents(query: str):
+def retrieve_cards(query: str):
     """
-    Retrieve documents from FAISS index that are similar to the query.
+    Retrieve cards from index that are similar to the query.
     """
-    # Perform similarity search
-    docs = db.similarity_search_with_score(query, k=10)
-
-    # Combine the content of the top documents
+    docs = db.similarity_search_with_score(query, k=20)
     return [doc[0] for doc in docs]
 
 # Adding the tool to the accessible tools list
-tools = [retrieve_similar_documents]
+tools = [retrieve_cards]
 tool_node = ToolNode(tools)
 
 # This is the default state same as "MessageState" TypedDict but allows us accessibility to custom keys
