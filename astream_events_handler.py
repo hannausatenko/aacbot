@@ -1,3 +1,5 @@
+import json
+
 from langchain_core.messages import AIMessage
 import streamlit as st
 from graph import graph_runnable
@@ -18,18 +20,34 @@ async def invoke_our_graph(st_messages, st_placeholder):
     container = st_placeholder  # This container will hold the dynamic Streamlit UI components
     thoughts_placeholder = container.container()  # Container for displaying status messages
     token_placeholder = container.empty()  # Placeholder for displaying progressive token updates
-    final_text = ""  # Will store the accumulated text from the model's response
-
-    # Stream events from the graph_runnable asynchronously
+    final_text = ""
+    buffer = ""
     async for event in graph_runnable.astream_events({"messages": st_messages}, version="v2"):
         kind = event["event"]  # Determine the type of event received
 
         if kind == "on_chat_model_stream":
-            # The event corresponding to a stream of new content (tokens or chunks of text)
-            addition = event["data"]["chunk"].content  # Extract the new content chunk
-            final_text += addition  # Append the new content to the accumulated text
+            addition = event["data"]["chunk"].content
             if addition:
-                token_placeholder.write(final_text)  # Update the st placeholder with the progressive response
+                buffer += addition
+            try:
+                cs = json.loads(buffer)
+                final_text += f"<h3>{cs['group']}</h3><div style='display: flex; gap: 20px;'>"
+                for item in cs["cards"]:
+                    thumbnail = f"""
+                        <div style="text-align: center;">
+                            <a href="{item['url']}" target="_blank">
+                                <img src="{item['thumbnail']}" alt="{item['name']}" style="width: 50px; height: auto;"/>
+                            </a>
+                            <div>{item['name'].capitalize()}</div>
+                        </div>"""
+                    final_text += f"{thumbnail}\n"
+                final_text += f"</div>"
+                token_placeholder.html(
+                    final_text
+                )
+                buffer = ""
+            except Exception as e:
+                pass
 
         elif kind == "on_tool_start":
             # The event signals that a tool is about to be called

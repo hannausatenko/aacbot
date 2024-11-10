@@ -226,7 +226,7 @@ cards = {
 "numbers_quantity_____zero___deti.svg": {"category": "numbers quantity", "keywords": "zero", "target": "kids"},
 "actions_____take_off___deti.svg": {"category": "actions", "keywords": "take off", "target": "kids"},
 "communication_____attention___deti.svg": {"category": "communication", "keywords": "attention", "target": "kids"},
-"food_meals_____compot___deti.png": {"category": "food meals", "keywords": "compot", "target": "kids"},
+"food_meals_____compot___deti.png": {"category": "food meals", "keywords": "juice", "target": "kids"},
 "pronouns_____we___dorosli.svg": {"category": "pronouns", "keywords": "we", "target": "adults"},
 "household_____products___dorosli.svg": {"category": "household", "keywords": "products", "target": "adults"},
 "pandemics_____what_happened___dorosli.svg": {"category": "pandemics", "keywords": "what happened", "target": "adults"},

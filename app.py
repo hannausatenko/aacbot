@@ -12,7 +12,10 @@ from util import check_password
 load_dotenv()
 
 st.title("AAC ChatBot")
-st.markdown("Hi! Let me help you select the DyvoGra symbol for alternative and augmentative communication (AAC). This will assist you with DImobi app usage. Please enter a few words about the topic or situation in which you need graphic symbols for communication.")
+st.markdown("""Hi! Let me help you select the DyvoGra symbol for alternative and augmentative communication (AAC).
+This will assist you with DImobi app usage.
+Please enter a few words about the topic or situation in which you need graphic symbols for communication.
+""")
 
 if not check_password():
     st.stop()
@@ -31,7 +34,7 @@ if prompt is not None:
 init = f"""
 You are an assistive communication tool that helps users find specific visual communication cards for individuals with complex communication needs,
 especially for children and adults with disorders such as autism or aphasia.
-Based on the user’s request, your task is to construct a relevant set of cards from predefined categories.
+Based on the user’s request, your task is to construct a relevant set of cards that may help the user to communicate with that person.
 
 ### Instructions
 
@@ -40,32 +43,56 @@ Here is the list of all available categories. Each category contains communicati
 {cats}
 
 2. **Identify the Target Group**:
-   - Determine if the user's query specifies a particular target group, such as "kids" or "adults."
-   - If a target group is specified, only suggest cards relevant to that group.
+   - Determine a particular target group, such as "kids" or "adults".
+   - If it is not clear which target group is requested - ask user.
+   
+3. **Identify the Idea**:
+   - Try to identify the main idea, which cards will be suitable to communicate with the person.
+   - Think about suitable phrases constructed with several cards, e.g. "I love you", "I do not want milk", "Stay home", "I want to a toilet".
 
-3. **Use the `retrieve_cards` Tool**:
+4. **Use the `retrieve_cards` Tool**:
    - Considering the available categories and keywords in **Categories Available**,
- construct a query for the `retrieve_cards` tool to find the most relevant cards that match the user’s request,
- focusing on the specified target group if applicable.
+ construct one or several consecutive queries for the `retrieve_cards` tool to find the most relevant cards that match the user’s request,
+ split complex queries to different consecutive queries,
+ each query MUST include the identified target group (see Identify the Target Group).
+   - Examples of a query:
+      - I, communication, toilet (kids)
+      - need, surprise, paint (adults)
 
-4. **Respond with Relevant Card Groups**:
-   - Based on the tool's output, suggest categories and cards that align with the user’s needs.
+5. **Respond with Relevant Card Groups**:
+   - Based on the tool's output, suggest categories and card groups that align with the user’s needs.
    - Provide examples or specific card groups that may aid in particular activities or communication goals.
-   - Display card images as thumbnails (using {{thumbnail}}) with links to the images ({{path}}).
- Each card should include only the image, category, and keyword.
- Note that some images may have names with extensions like `name.png.png` or `name.svg.png`.
+   - Use the only cards that were responded by the tool, do not create your own.
+
+6. **Response format**:
+It has to be strictly in JSONL format.
+""" + """
+{"group": "I want candy", "cards": [
+    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "I"},
+    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "want"},
+    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "candy"}
+]}
+{"group": "Get calm", "cards": [
+    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "get calm"}
+]}
+{"group": "I need rest", "cards": [
+    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "I"},
+    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "want"},
+    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "rest"}
+]}
+"""
 
 # Initialize chat messages in session state
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [SystemMessage(content=init), AIMessage(content="How can I help you?")]
-"""
+    st.session_state["messages"] = [SystemMessage(content=init), AIMessage(content="""
+    How can I help you? Examples:
+    Suggest me cards to communicate with my grandmother for her basic needs
+    """)]
 
 # Loop through all messages in the session state and render them as a chat on every st.refresh mech
 for msg in st.session_state.messages:
-    # https://docs.streamlit.io/develop/api-reference/chat/st.chat_message
-    # we store them as AIMessage and HumanMessage as its easier to send to LangGraph
     if isinstance(msg, AIMessage):
-        st.chat_message("assistant").write(msg.content)
+        st.chat_message("assistant").html(msg.content)
     elif isinstance(msg, HumanMessage):
         st.chat_message("user").write(msg.content)
 

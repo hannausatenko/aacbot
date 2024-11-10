@@ -16,8 +16,8 @@ from langchain.schema import Document
 
 documents = [
     Document(
-        page_content=f"Category: {data['category']}, Keywords: {data['keywords']}, Target: {data['target']}",
-        metadata={"full": "https://aacbot.s3.us-east-1.amazonaws.com/static/en/ful/" + path, "thumbnail": "https://aacbot.s3.us-east-1.amazonaws.com/static/en/tmb/" + path + ".png", "category": data["category"], "keywords": data["keywords"], "target": data["target"]}
+        page_content=f"category: {data['category']}, keywords: {data['keywords']}, target: {data['target']}",
+        metadata={"url": "https://aacbot.s3.us-east-1.amazonaws.com/static/en/ful/" + path, "thumbnail": "https://aacbot.s3.us-east-1.amazonaws.com/static/en/tmb/" + path + ".png", "category": data["category"], "keywords": data["keywords"], "target": data["target"]}
     )
     for path, data in cards.items()
 ]
@@ -27,7 +27,7 @@ db = FAISS.from_documents(documents, embeddings)
 
 llm = OpenAI()
 
-db.save_local("faiss_index")
+# db.save_local("faiss_index")
 new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
 
 
@@ -50,6 +50,15 @@ class GraphsState(TypedDict):
 
 graph = StateGraph(GraphsState)
 
+llm = ChatOpenAI(
+    temperature=0.7,
+    streaming=True,
+    model_kwargs={'response_format': {"type": 'json_object'}}
+
+    # specifically for OpenAI we have to set parallel tool call to false
+    # because of st primitively visually rendering the tool results
+).bind_tools(tools, parallel_tool_calls=False)
+
 # Function to decide whether to continue tool usage or end the process
 def should_continue(state: GraphsState) -> Literal["tools", "__end__"]:
     messages = state["messages"]
@@ -61,14 +70,8 @@ def should_continue(state: GraphsState) -> Literal["tools", "__end__"]:
 # Core invocation of the model
 def _call_model(state: GraphsState):
     messages = state["messages"]
-    llm = ChatOpenAI(
-        temperature=0.7,
-        streaming=True,
-        # specifically for OpenAI we have to set parallel tool call to false
-        # because of st primitively visually rendering the tool results
-    ).bind_tools(tools, parallel_tool_calls=False)
     response = llm.invoke(messages)
-    return {"messages": [response]}  # add the response to the messages using LangGraph reducer paradigm
+    return {"messages": [response]}
 
 # Define the structure (nodes and directional edges between nodes) of the graph
 graph.add_edge(START, "llm")
