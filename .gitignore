@@ -1,2 +1,4 @@
 .idea/
 faiss_index/
+.claude/
+.env

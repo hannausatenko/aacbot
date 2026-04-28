@@ -3,12 +3,14 @@ FROM python:3.11-slim
 # System libs for cairosvg (cairo, pango, gdk-pixbuf)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 libffi-dev shared-mime-info \
+    libgdk-pixbuf-2.0-0 libffi-dev shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
+# Install CPU-only PyTorch first to avoid pulling 2 GB of CUDA/NVIDIA packages
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download the embedding model so it's baked into the image
