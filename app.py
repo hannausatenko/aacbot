@@ -300,4 +300,5 @@ if __name__ == "__main__":
         allowed_paths=[str(PNG_DIR)],
         show_error=True,
         css="footer { display: none !important; }",
+        root_path="https://aacbot.dyvogra.com",
     )
