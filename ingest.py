@@ -66,7 +66,7 @@ def convert_to_png(records: list[dict]):
     for rec in tqdm(records, desc="Converting to PNG"):
         png_path = PNG_DIR / f"{rec['symbol_name']}.png"
         if png_path.exists():
-            rec["png_path"] = png_path.name
+            rec["png_path"] = str(png_path)
             continue
         src = rec["source_path"]
         try:
@@ -74,7 +74,7 @@ def convert_to_png(records: list[dict]):
                 shutil.copy2(src, png_path)
             else:
                 cairosvg.svg2png(url=str(src), write_to=str(png_path), output_width=PNG_WIDTH)
-            rec["png_path"] = png_path.name
+            rec["png_path"] = str(png_path)
         except Exception as e:
             print(f"  failed {rec['symbol_name']}: {e}")
             failed += 1
@@ -195,7 +195,7 @@ def main():
     else:
         for rec in records:
             png_path = PNG_DIR / f"{rec['symbol_name']}.png"
-            rec["png_path"] = png_path.name if png_path.exists() else None
+            rec["png_path"] = str(png_path) if png_path.exists() else None
 
     embed_and_store(records, force=args.force)
 

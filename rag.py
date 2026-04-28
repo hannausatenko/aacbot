@@ -10,6 +10,12 @@ from sentence_transformers import SentenceTransformer
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "pictograms.db"
+PNG_DIR = BASE_DIR / "data" / "dyvogra-png"
+
+
+def _fix_png_path(stored_path: str) -> str:
+    """Remap stored absolute path to the actual location next to this file."""
+    return str(PNG_DIR / Path(stored_path).name)
 EMBED_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 EMBED_DIM = 384
 
@@ -95,7 +101,7 @@ def _query_once(query: str, n_results: int, audience: str | None, strong_thresho
 
     all_results = [
         {"display_name": row[0], "category": row[1], "audience": row[2],
-         "png_path": row[3], "distance": round(row[4], 4),
+         "png_path": _fix_png_path(row[3]), "distance": round(row[4], 4),
          "display_name_uk": row[5] or row[0], "category_uk": row[6] or row[1]}
         for row in rows
         if row[4] <= SYMBOL_THRESHOLD
@@ -168,7 +174,7 @@ def retrieve(query: str, n_results: int = 40, audience: str | None = None) -> li
             for row in preferred:
                 if row[0] not in existing_names:
                     results.append({"display_name": row[0], "category": row[1],
-                                    "audience": row[2], "png_path": row[3], "distance": 0.0,
+                                    "audience": row[2], "png_path": _fix_png_path(row[3]), "distance": 0.0,
                                     "display_name_uk": row[4] or row[0], "category_uk": row[5] or row[1]})
                     existing_names.add(row[0])
     conn.close()
@@ -210,7 +216,7 @@ def retrieve_phrase(
             if name not in seen:
                 seen.add(name)
                 phrase.append({"role": role, "display_name": name, "category": cat,
-                               "audience": aud, "png_path": path, "distance": 0.0,
+                               "audience": aud, "png_path": _fix_png_path(path), "distance": 0.0,
                                "display_name_uk": name_uk or name, "category_uk": cat_uk or cat})
                 matched = True
                 break
@@ -241,7 +247,7 @@ def retrieve_phrase(
                     continue
                 seen.add(name)
                 phrase.append({"role": role, "display_name": name, "category": cat,
-                               "audience": aud, "png_path": path, "distance": round(dist, 4),
+                               "audience": aud, "png_path": _fix_png_path(path), "distance": round(dist, 4),
                                "display_name_uk": name_uk or name, "category_uk": cat_uk or cat})
                 matched = True
                 break

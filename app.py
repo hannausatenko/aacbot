@@ -80,8 +80,7 @@ EXAMPLES = {
 
 def _img_b64(png_path: str) -> str | None:
     try:
-        resolved = PNG_DIR / Path(png_path).name
-        return base64.b64encode(resolved.read_bytes()).decode()
+        return base64.b64encode(Path(png_path).read_bytes()).decode()
     except Exception:
         return None
 
@@ -295,6 +294,7 @@ with gr.Blocks(title="Dimobi Search") as demo:
 
 if __name__ == "__main__":
     demo.launch(
+        server_name="0.0.0.0",
         share=False,
         theme=gr.themes.Soft(),
         allowed_paths=[str(PNG_DIR)],
