@@ -1,108 +1,302 @@
-import os
+"""Pictogram search UI — phrase constructor."""
+
+import base64
+from collections import defaultdict
+from pathlib import Path
+
+import gradio as gr
 from dotenv import load_dotenv
 
-import streamlit as st
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-import asyncio
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
-from astream_events_handler import invoke_our_graph
-from conf import cards, categories, cats
-from util import check_password
+from llm import expand_query
+from rag import retrieve, retrieve_phrase
 
-load_dotenv()
+PNG_DIR = Path(__file__).resolve().parent / "data" / "dyvogra-png"
 
-st.title("AAC ChatBot")
-st.markdown("""Hi! Let me help you select the DyvoGra symbol for alternative and augmentative communication (AAC).
-This will assist you with DImobi app usage.
-Please enter a few words about the topic or situation in which you need graphic symbols for communication.
-""")
+LANGUAGES = ["English", "Українська"]
 
-if not check_password():
-    st.stop()
+AUDIENCE_OPTIONS = {
+    "English":    ["Any", "Children", "Adults"],
+    "Українська": ["Будь-які", "Діти", "Дорослі"],
+}
 
-# Initialize the expander state
-if "expander_open" not in st.session_state:
-    st.session_state.expander_open = True
+AUDIENCE_VALUE_MAP = {
+    "Any": None, "Будь-які": None,
+    "Children": "children", "Діти": "children",
+    "Adults": "adults",     "Дорослі": "adults",
+}
 
-# Capture user input from chat input
-prompt = st.chat_input()
+UI_STRINGS = {
+    "English": {
+        "placeholder": "Describe what you want to say — e.g. 'I am hungry'",
+        "no_results": "No pictograms found. Try rephrasing what you want to say.",
+        "children": "children", "adults": "adults",
+        "phrase_label": "▶ SUGGESTED PHRASE",
+        "categories_label": "▶ SUGGESTED CATEGORIES",
+        "search_btn": "Search",
+        "title": "Dimobi Search",
+        "subtitle": "Dyvogra symbols",
+    },
+    "Українська": {
+        "placeholder": "Опишіть, що хочете сказати — напр. 'я голодний'",
+        "no_results": "Нічого не знайдено. Спробуйте переформулювати.",
+        "children": "діти", "adults": "дорослі",
+        "phrase_label": "▶ ЗАПРОПОНОВАНА ФРАЗА",
+        "categories_label": "▶ ЗАПРОПОНОВАНІ КАТЕГОРІЇ",
+        "search_btn": "Пошук",
+        "title": "Dimobi Пошук",
+        "subtitle": "Символи Dyvogra",
+    },
+}
 
-# Toggle expander state based on user input
-if prompt is not None:
-    st.session_state.expander_open = False  # Close the expander when the user starts typing
+EXAMPLES = {
+    "English": [
+        "child is sick and doesn't want to eat",
+        "I am hungry",
+        "I have a headache",
+        "I am scared and want my mother",
+        "I need to go to the toilet",
+        "I feel sad and lonely",
+        "I want to call an ambulance",
+        "I cannot breathe well",
+        "I want to wash my hands",
+        "Yes, thank you",
+    ],
+    "Українська": [
+        "дитина хвора і не хоче їсти",
+        "я голодний",
+        "у мене болить голова",
+        "мені страшно, хочу до мами",
+        "мені потрібно в туалет",
+        "мені сумно і самотньо",
+        "хочу викликати швидку",
+        "мені важко дихати",
+        "хочу помити руки",
+        "так, дякую",
+    ],
+}
 
-init = f"""
-You are an assistive communication tool that helps users find specific visual communication cards for individuals with complex communication needs,
-especially for children and adults with disorders such as autism or aphasia.
-Based on the user’s request, your task is to construct a relevant set of cards that may help the user to communicate with that person.
 
-### Instructions
+def _img_b64(png_path: str) -> str | None:
+    try:
+        return base64.b64encode(Path(png_path).read_bytes()).decode()
+    except Exception:
+        return None
 
-1. **Categories Available**:
-Here is the list of all available categories. Each category contains communication cards designed for specific target groups:
-{cats}
 
-2. **Identify the Target Group**:
-   - Determine a particular target group, such as "kids" or "adults".
-   - If it is not clear which target group is requested - ask user.
-   
-3. **Identify the Idea**:
-   - Try to identify the main idea, which cards will be suitable to communicate with the person.
-   - Think about suitable phrases constructed with several cards, e.g. "I love you", "I do not want milk", "Stay home", "I want to a toilet".
+def _render_constructor(parts: list[dict], language: str = "English") -> str:
+    if not parts:
+        return (
+            '<p style="color:#4a5568;font-size:13px;padding:12px 0">'
+            'Search above to build a phrase.</p>'
+        )
 
-4. **Use the `retrieve_cards` Tool**:
-   - Considering the available categories and keywords in **Categories Available**,
- construct one or several consecutive queries for the `retrieve_cards` tool to find the most relevant cards that match the user’s request,
- split complex queries to different consecutive queries,
- each query MUST include the identified target group (see Identify the Target Group).
-   - Examples of a query:
-      - I, communication, toilet (kids)
-      - need, surprise, paint (adults)
+    slots = ""
+    for i, part in enumerate(parts):
+        if i > 0:
+            slots += '<span style="color:#a78bfa;font-size:24px;align-self:center;margin-top:14px">→</span>'
 
-5. **Respond with Relevant Card Groups**:
-   - Based on the tool's output, suggest categories and card groups that align with the user’s needs.
-   - Provide examples or specific card groups that may aid in particular activities or communication goals.
-   - Use the only cards that were responded by the tool, do not create your own.
+        b64 = _img_b64(part["png_path"])
+        bg = f"url(data:image/png;base64,{b64}) center/contain no-repeat #fff" if b64 else "#1e2035"
+        role = part.get("role", "")
+        name = part.get("display_name_uk", part["display_name"]) if language == "Українська" else part["display_name"]
 
-6. **Response format**:
-It has to be strictly in JSONL format.
-""" + """
-{"group": "I want candy", "cards": [
-    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "I"},
-    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "want"},
-    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "candy"}
-]}
-{"group": "Get calm", "cards": [
-    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "get calm"}
-]}
-{"group": "I need rest", "cards": [
-    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "I"},
-    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "want"},
-    {"url": "{url}", "thumbnail": "{thumbnail}", "name": "rest"}
-]}
-"""
+        slots += f"""
+<div style="flex:0 0 auto;text-align:center">
+  <div style="font-size:10px;font-weight:700;color:#4a5568;text-transform:uppercase;
+              letter-spacing:0.08em;margin-bottom:6px;height:14px">{role}</div>
+  <div style="width:96px;height:96px;background:{bg};border-radius:12px;
+              box-shadow:0 2px 12px rgba(0,0,0,0.4)"></div>
+  <div style="font-size:12px;font-weight:600;margin-top:8px;color:#e2e8f0;
+              max-width:96px;line-height:1.3;word-wrap:break-word">{name}</div>
+</div>"""
 
-# Initialize chat messages in session state
-if "messages" not in st.session_state:
-    st.session_state["messages"] = [SystemMessage(content=init), AIMessage(content="""
-    How can I help you? Examples:
-    Suggest me cards to communicate with my grandmother for her basic needs
-    """)]
+    return (
+        f'<div style="background:#12152a;border:1px solid #2d2f45;border-radius:14px;'
+        f'padding:20px 24px 24px">'
+        f'<div style="display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px">{slots}</div>'
+        f'</div>'
+    )
 
-# Loop through all messages in the session state and render them as a chat on every st.refresh mech
-for msg in st.session_state.messages:
-    if isinstance(msg, AIMessage):
-        st.chat_message("assistant").html(msg.content)
-    elif isinstance(msg, HumanMessage):
-        st.chat_message("user").write(msg.content)
 
-# Handle user input if provided
-if prompt:
-    st.session_state.messages.append(HumanMessage(content=prompt))
-    st.chat_message("user").write(prompt)
+def _render_results(results: list[dict], language: str) -> str:
+    strings = UI_STRINGS.get(language, UI_STRINGS["English"])
+    if not results:
+        return f'<p style="color:#94a3b8;padding:24px 0">{strings["no_results"]}</p>'
 
-    with st.chat_message("assistant"):
-        # create a placeholder container for streaming and any other events to visually render here
-        placeholder = st.container()
-        response = asyncio.run(invoke_our_graph(st.session_state.messages, placeholder))
-        st.session_state.messages.append(AIMessage(response))
+    by_category: dict[str, list[dict]] = defaultdict(list)
+    for r in results:
+        by_category[r["category"]].append(r)
+
+    use_uk = language == "Українська"
+
+    # Category nav bar
+    nav_items = ""
+    for category, syms in by_category.items():
+        cat_id = category.replace(" ", "-")
+        first = syms[0]
+        cat_label = (first.get("category_uk") or category) if use_uk else category.replace("_", " ").title()
+        nav_items += (
+            f'<a href="#{cat_id}" style="display:inline-block;padding:4px 10px;margin:3px;'
+            f'background:#1e2035;border:1px solid #2d2f45;border-radius:20px;'
+            f'font-size:12px;color:#a78bfa;text-decoration:none;white-space:nowrap;'
+            f'transition:background 0.15s" '
+            f'onmouseenter="this.style.background=\'#2d2f45\'" '
+            f'onmouseleave="this.style.background=\'#1e2035\'">'
+            f'{cat_label}</a>'
+        )
+    cat_header_label = strings["categories_label"]
+    nav = (
+        f'<div style="margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid #2d2f45">'
+        f'<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px">'
+        f'<span style="font-size:10px;font-weight:700;color:#4a5568;letter-spacing:0.12em;text-transform:uppercase">{cat_header_label}</span>'
+        f'<a href="https://dimobi.org.ua/categories" target="_blank" '
+        f'style="font-size:11px;color:#a78bfa;text-decoration:none;opacity:0.7" '
+        f'onmouseenter="this.style.opacity=\'1\'" onmouseleave="this.style.opacity=\'0.7\'">dimobi.org.ua/categories ↗</a>'
+        f'</div>'
+        f'{nav_items}</div>'
+    )
+
+    html = nav
+    for category, symbols in by_category.items():
+        cat_id = category.replace(" ", "-")
+        first = symbols[0]
+        cat_label = (first.get("category_uk") or category) if use_uk else category.replace("_", " ").title()
+        items_html = ""
+        for r in symbols:
+            b64 = _img_b64(r["png_path"])
+            if not b64:
+                continue
+            src = f"data:image/png;base64,{b64}"
+            audience = strings.get(r.get("audience", ""), r.get("audience", ""))
+            aud_color = "#4a90d9" if r.get("audience") == "children" else "#9b7fe8"
+            label = r.get("display_name_uk", r["display_name"]) if language == "Українська" else r["display_name"]
+            items_html += (
+                f'<div style="display:inline-block;text-align:center;width:100px;margin:6px;vertical-align:top">'
+                f'<div style="width:80px;height:80px;background:url({src}) center/contain no-repeat #fff;'
+                f'border-radius:8px;margin:0 auto;box-shadow:0 1px 4px rgba(0,0,0,0.15)"></div>'
+                f'<div style="font-size:12px;font-weight:600;margin-top:6px;line-height:1.3;color:#e2e8f0">{label}</div>'
+                f'<div style="font-size:10px;margin-top:2px;color:{aud_color};text-transform:uppercase;letter-spacing:0.06em">{audience}</div>'
+                f'</div>'
+            )
+        html += (
+            f'<div id="{cat_id}" style="margin-bottom:32px">'
+            f'<a href="#{cat_id}" style="text-decoration:none">'
+            f'<h3 style="font-size:15px;font-weight:700;color:#a78bfa;margin:0 0 12px;'
+            f'border-bottom:1px solid #2d2f45;padding-bottom:8px;letter-spacing:0.03em">'
+            f'# {cat_label}</h3></a>'
+            f'<div style="display:flex;flex-wrap:wrap">{items_html}</div>'
+            f'</div>'
+        )
+    return html
+
+
+def _phrase_label(language: str) -> str:
+    s = UI_STRINGS.get(language, UI_STRINGS["English"])
+    return (
+        f'<div style="font-size:10px;font-weight:700;color:#4a5568;letter-spacing:0.12em;'
+        f'text-transform:uppercase;margin:16px 0 6px">{s["phrase_label"]}</div>'
+    )
+
+
+def _search(query: str, language: str, audience_label: str):
+    if not query.strip():
+        return [], "", _render_constructor([]), ""
+    manual_audience = AUDIENCE_VALUE_MAP.get(audience_label)
+    expanded, phrase_parts_raw, detected_audience = expand_query(query.strip())
+    audience = manual_audience if manual_audience is not None else detected_audience
+    phrase = retrieve_phrase(phrase_parts_raw, audience)
+    results = retrieve(expanded, n_results=40, audience=audience)
+    label = _phrase_label(language) if phrase else ""
+    return phrase, label, _render_constructor(phrase, language), _render_results(results, language)
+
+
+
+_DEFAULT_LANG = "English"
+_EX = EXAMPLES[_DEFAULT_LANG]
+
+with gr.Blocks(title="Dimobi Search") as demo:
+    phrase_state = gr.State([])
+    lang_state   = gr.State(_DEFAULT_LANG)
+
+    with gr.Row():
+        gr.Markdown("# Dimobi Search <small style='font-weight:400;font-size:14px;color:#64748b'>Dyvogra symbols</small>")
+        flag_en = gr.Button("🇬🇧", size="sm", scale=0, min_width=48)
+        flag_ua = gr.Button("🇺🇦", size="sm", scale=0, min_width=48)
+
+    # Example queries at the top — 10 buttons reused across languages
+    example_btns = []
+    with gr.Row():
+        for ex in _EX[:5]:
+            example_btns.append(gr.Button(ex, size="sm"))
+    with gr.Row():
+        for ex in _EX[5:]:
+            example_btns.append(gr.Button(ex, size="sm"))
+
+    with gr.Row():
+        audience_select = gr.Dropdown(
+            choices=AUDIENCE_OPTIONS[_DEFAULT_LANG], value=AUDIENCE_OPTIONS[_DEFAULT_LANG][0],
+            show_label=False, scale=1, container=False,
+        )
+        query_box = gr.Textbox(
+            placeholder=UI_STRINGS[_DEFAULT_LANG]["placeholder"],
+            show_label=False, scale=5, container=False,
+        )
+        search_btn = gr.Button(UI_STRINGS[_DEFAULT_LANG]["search_btn"], variant="primary", scale=1)
+
+    phrase_label = gr.HTML(value="")
+    phrase_html  = gr.HTML(value="")
+    results_html = gr.HTML()
+
+    for i, btn in enumerate(example_btns):
+        def _set_example(lang, idx=i):
+            exs = EXAMPLES.get(lang, EXAMPLES[_DEFAULT_LANG])
+            return exs[idx] if idx < len(exs) else ""
+        btn.click(
+            fn=_set_example, inputs=[lang_state], outputs=query_box,
+        ).then(
+            fn=_search, inputs=[query_box, lang_state, audience_select],
+            outputs=[phrase_state, phrase_label, phrase_html, results_html],
+        )
+
+    def _update_lang(language: str):
+        strings = UI_STRINGS.get(language, UI_STRINGS[_DEFAULT_LANG])
+        opts = AUDIENCE_OPTIONS.get(language, AUDIENCE_OPTIONS[_DEFAULT_LANG])
+        exs = EXAMPLES.get(language, EXAMPLES[_DEFAULT_LANG])
+        btn_updates = [gr.update(value=exs[i] if i < len(exs) else "") for i in range(10)]
+        return (
+            language,
+            gr.update(placeholder=strings["placeholder"]),
+            gr.update(choices=opts, value=opts[0]),
+            gr.update(value=strings["search_btn"]),
+            *btn_updates,
+        )
+
+    flag_en.click(fn=lambda: "English",   outputs=lang_state).then(
+        fn=_update_lang, inputs=lang_state,
+        outputs=[lang_state, query_box, audience_select, search_btn, *example_btns],
+    )
+    flag_ua.click(fn=lambda: "Українська", outputs=lang_state).then(
+        fn=_update_lang, inputs=lang_state,
+        outputs=[lang_state, query_box, audience_select, search_btn, *example_btns],
+    )
+
+    search_btn.click(
+        fn=_search, inputs=[query_box, lang_state, audience_select],
+        outputs=[phrase_state, phrase_label, phrase_html, results_html],
+    )
+    query_box.submit(
+        fn=_search, inputs=[query_box, lang_state, audience_select],
+        outputs=[phrase_state, phrase_label, phrase_html, results_html],
+    )
+
+
+if __name__ == "__main__":
+    demo.launch(
+        share=False,
+        theme=gr.themes.Soft(),
+        allowed_paths=[str(PNG_DIR)],
+        show_error=True,
+        css="footer { display: none !important; }",
+    )
