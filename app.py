@@ -80,7 +80,8 @@ EXAMPLES = {
 
 def _img_b64(png_path: str) -> str | None:
     try:
-        return base64.b64encode(Path(png_path).read_bytes()).decode()
+        resolved = PNG_DIR / Path(png_path).name
+        return base64.b64encode(resolved.read_bytes()).decode()
     except Exception:
         return None
 
