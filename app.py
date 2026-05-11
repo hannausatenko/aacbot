@@ -216,7 +216,11 @@ def _search(query: str, language: str, audience_label: str):
 _DEFAULT_LANG = "English"
 _EX = EXAMPLES[_DEFAULT_LANG]
 
-with gr.Blocks(title="Dimobi Search") as demo:
+with gr.Blocks(
+    title="Dimobi Search",
+    theme=gr.themes.Soft(),
+    css="footer { display: none !important; }",
+) as demo:
     phrase_state = gr.State([])
     lang_state   = gr.State(_DEFAULT_LANG)
 
@@ -296,10 +300,7 @@ import uvicorn
 from fastapi import FastAPI
 
 fastapi_app = FastAPI()
-app_instance = gr.mount_gradio_app(
-    fastapi_app, demo, path="/aacbot",
-    allowed_paths=[str(PNG_DIR)],
-)
+gr.mount_gradio_app(fastapi_app, demo, path="/aacbot")
 
 if __name__ == "__main__":
-    uvicorn.run(app_instance, host="0.0.0.0", port=7860)
+    uvicorn.run(fastapi_app, host="0.0.0.0", port=7860)
