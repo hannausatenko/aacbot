@@ -297,10 +297,16 @@ with gr.Blocks(
 
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 fastapi_app = FastAPI()
+
+@fastapi_app.middleware("http")
+async def force_https(request: Request, call_next):
+    request.scope["scheme"] = "https"
+    return await call_next(request)
+
 gr.mount_gradio_app(fastapi_app, demo, path="/aacbot")
 
 if __name__ == "__main__":
-    uvicorn.run(fastapi_app, host="0.0.0.0", port=7860, proxy_headers=True, forwarded_allow_ips="*")
+    uvicorn.run(fastapi_app, host="0.0.0.0", port=7860)
