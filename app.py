@@ -292,13 +292,14 @@ with gr.Blocks(title="Dimobi Search") as demo:
     )
 
 
+import uvicorn
+from fastapi import FastAPI
+
+fastapi_app = FastAPI()
+app_instance = gr.mount_gradio_app(
+    fastapi_app, demo, path="/aacbot",
+    allowed_paths=[str(PNG_DIR)],
+)
+
 if __name__ == "__main__":
-    demo.launch(
-        server_name="0.0.0.0",
-        share=False,
-        theme=gr.themes.Soft(),
-        allowed_paths=[str(PNG_DIR)],
-        show_error=True,
-        css="footer { display: none !important; }",
-        root_path="/aacbot",
-    )
+    uvicorn.run(app_instance, host="0.0.0.0", port=7860)
